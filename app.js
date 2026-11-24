@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwH61dRsqs8ZyehbJIkxaZhXau6uha_s_4iU8hsT3bO422DGoINRLbC-unkLbggPkz9/exec";
+const API_URL = "script.google.com/macros/s/AKfycbyp94qwphKaL8fMnOq6RFfI6fqhTKq2lK8baDyVNbgunkHQrwAZiZ0ZRLdzBfBDN5WE/exec";
 const WARN_DAYS = 30;
 let cachedData = [];
 
