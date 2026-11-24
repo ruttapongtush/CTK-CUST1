@@ -1,65 +1,29 @@
-const STORAGE_KEY = "cctv_billing_system_v1";
+const API_URL = "https://script.google.com/macros/s/AKfycbwH61dRsqs8ZyehbJIkxaZhXau6uha_s_4iU8hsT3bO422DGoINRLbC-unkLbggPkz9/exec";
 const WARN_DAYS = 30;
-
-const defaultData = [
-  {
-    receiptNo: "INV-2026-001",
-    customerName: "บริษัท ตัวอย่าง จำกัด",
-    address: "123 ถ.พหลโยธิน ต.ท่าหิน อ.เมืองลพบุรี จ.ลพบุรี 15000",
-    diagramPdf: "diagrams/INV-2026-001.pdf",
-    items: [
-      {
-        id: "CAM-01",
-        productType: "กล้อง",
-        model: "DS-2CD2146G3-IPTRZ",
-        ip: "192.168.1.101",
-        warrantyEnd: "2026-12-10",
-        price: 3800,
-        distributor: "Distributor A",
-        note: "กล้องตัวที่ 1 หน้าประตูทางเข้า",
-        maintenance: [
-          { date: "2026-08-15", detail: "กล้องตัวที่ 1 Adapter เสีย -> เปลี่ยน 12V 2A ตัวใหม่แล้ว" }
-        ]
-      },
-      {
-        id: "CAM-02",
-        productType: "กล้อง",
-        model: "DS-2CD2146G3-IPTRZ",
-        ip: "192.168.1.102",
-        warrantyEnd: "2028-05-15",
-        price: 3800,
-        distributor: "Distributor A",
-        note: "กล้องตัวที่ 2 ลานจอดรถ",
-        maintenance: []
-      }
-    ]
-  }
-];
-
-function loadData() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) return JSON.parse(saved);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultData));
-  return structuredClone(defaultData);
-}
-
-function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-function resetDemoData() {
-  localStorage.removeItem(STORAGE_KEY);
-  renderAll();
-}
+let cachedData = [];
 
 function daysUntil(dateStr) {
+  if (!dateStr) return 9999;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(dateStr + "T00:00:00");
   return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
 }
 
-function addMaintenance(receiptNo, itemId) {
+async function fetchFromSheet() {
+  const container = document.getElementById("recordsContainer");
+  container.innerHTML = `<div class="card">กำลังโหลดข้อมูลจาก Google Sheets...</div>`;
+
+  try {
+    const res = await fetch(API_URL);
+    cachedData = await res.json();
+    renderAll();
+  } catch (err) {
+    container.innerHTML = `<div class="card" style="color:red;">เชื่อมต่อ Google Sheets ไม่สำเร็จ: ${err.message}</div>`;
+  }
+}
+
+async function addMaintenance(receiptNo, itemId) {
   const dateInput = document.getElementById(`mDate_${itemId}`);
   const detailInput = document.getElementById(`mDetail_${itemId}`);
   const dateVal = dateInput.value;
@@ -70,14 +34,29 @@ function addMaintenance(receiptNo, itemId) {
     return;
   }
 
-  const data = loadData();
-  const receipt = data.find(r => r.receiptNo === receiptNo);
-  const item = receipt?.items.find(i => i.id === itemId);
-  if (!item) return;
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = "กำลังบันทึก...";
 
-  item.maintenance.push({ date: dateVal, detail: detailVal });
-  saveData(data);
-  renderAll();
+  try {
+    await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "addMaintenance",
+        receiptNo: receiptNo,
+        itemId: itemId,
+        date: dateVal,
+        detail: detailVal
+      })
+    });
+
+    await fetchFromSheet(); // โหลดข้อมูลล่าสุดจาก Sheet มาแสดงใหม่
+  } catch (err) {
+    alert("บันทึกไม่สำเร็จ: " + err.message);
+    btn.disabled = false;
+    btn.textContent = "+ บันทึกซ่อม";
+  }
 }
 
 function renderAlerts(data) {
@@ -120,12 +99,11 @@ function renderAlerts(data) {
 }
 
 function renderAll() {
-  const data = loadData();
   const kw = document.getElementById("searchInput").value.trim().toLowerCase();
-  renderAlerts(data);
+  renderAlerts(cachedData);
 
   const container = document.getElementById("recordsContainer");
-  const filtered = data.filter(r => {
+  const filtered = cachedData.filter(r => {
     const matchReceipt =
       r.receiptNo.toLowerCase().includes(kw) ||
       r.customerName.toLowerCase().includes(kw) ||
@@ -138,6 +116,11 @@ function renderAll() {
     return !kw || matchReceipt || matchItem;
   });
 
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="card">ไม่พบข้อมูลที่ค้นหา</div>`;
+    return;
+  }
+
   container.innerHTML = filtered.map(r => `
     <div class="card">
       <div class="row-flex" style="justify-content: space-between;">
@@ -146,7 +129,9 @@ function renderAll() {
           <div style="color:#4b5563; font-size:14px;">ที่อยู่: ${r.address}</div>
         </div>
         <div>
-          <a href="${r.diagramPdf}" target="_blank">เปิดไฟล์ Diagram (PDF)</a>
+          ${r.diagramPdf
+            ? `<a href="${r.diagramPdf}" target="_blank">เปิดไฟล์ Diagram (PDF)</a>`
+            : `<span style="color:#9ca3af; font-size:13px;">ไม่มีไฟล์ Diagram</span>`}
         </div>
       </div>
 
@@ -199,4 +184,4 @@ function renderAll() {
   `).join("");
 }
 
-renderAll();
+fetchFromSheet();
