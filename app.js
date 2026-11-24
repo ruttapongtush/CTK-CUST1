@@ -1,4 +1,4 @@
-const API_URL = "script.google.com/macros/s/AKfycbyp94qwphKaL8fMnOq6RFfI6fqhTKq2lK8baDyVNbgunkHQrwAZiZ0ZRLdzBfBDN5WE/exec";
+const API_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnTK_HT_C1hpmp0oN_oUca-sVbFxuNKmTqC9XBsDkz45bLIa_u3K3D3yeNKo51qQIAZuQVnL3vNsTKXvkP4LynNdB3QpXrVk2Ok6Aa3HVGbjQ94CXiOBKJDzFdS3cutvPPSGLUJPypTL-ul_5Vyj8q-akqE5SNosZfbYq418ZXZJdY8ACmGJ__L6zSirOJuX8DRNILX_OAxdxqYmDQkcKC-TuDX2qiFI16nKwmVFVj15AUisdlfH1pg1NP4_0MWYtaFfEiayFIjcAhAW1BhFaPUURzKKPQ&lib=MsBHAS5EOVpNNb7tF5mubXrbFj9HXTZNr";
 const WARN_DAYS = 30;
 let cachedData = [];
 
