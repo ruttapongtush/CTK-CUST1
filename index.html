@@ -1,1 +1,45 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบบิลลูกค้า & ประวัติอุปกรณ์ CCTV</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; background: #f4f6f9; color: #1f2937; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 10px; padding: 18px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+    .alert-box { background: #fff7ed; border-left: 5px solid #ea580c; padding: 14px 18px; border-radius: 8px; margin-bottom: 16px; }
+    .badge-warn { background: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge-ok { background: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    input, select, button { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 14px; }
+    button { background: #2563eb; color: #fff; border: none; cursor: pointer; font-weight: 600; }
+    button:hover { background: #1d4ed8; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    .maint-list { margin: 6px 0 0; padding-left: 18px; color: #374151; font-size: 13px; }
+    .row-flex { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ระบบบิลข้อมูลลูกค้า & ประกันอุปกรณ์ CCTV</h1>
 
+    <!-- ส่วนแจ้งเตือนประกันใกล้หมดอายุ -->
+    <div id="warrantyAlerts" class="alert-box">
+      <strong>กำลังตรวจสอบสถานะประกันอุปกรณ์...</strong>
+    </div>
+
+    <!-- ช่องค้นหา -->
+    <div class="card row-flex">
+      <input type="text" id="searchInput" placeholder="ค้นหา ชื่อลูกค้า, เลขที่ใบเสร็จ, รุ่นกล้อง, IP..." style="flex: 1; min-width: 240px;" oninput="renderAll()" />
+      <button onclick="resetDemoData()">รีเซ็ตข้อมูลตัวอย่าง</button>
+    </div>
+
+    <!-- รายการบิลและอุปกรณ์ -->
+    <div id="recordsContainer"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
