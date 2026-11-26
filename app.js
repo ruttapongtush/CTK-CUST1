@@ -1,4 +1,4 @@
-const RAW_API_URL = "https://script.google.com/macros/s/วาง_DEPLOYMENT_ID_ของคุณที่นี่/exec";
+const RAW_API_URL = "https://docs.google.com/spreadsheets/d/15mFEwfDx5fujaZjzfki-BpY4UMimusHjKTqiIbBK1hw/edit?gid=53403992#gid=53403992";
 const WARN_DAYS = 30;
 let cachedCustomers = [];
 
