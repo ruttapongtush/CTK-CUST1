@@ -1,4 +1,4 @@
-// เปลี่ยนเป็น Web App URL ของคุณที่ลงท้ายด้วย /exec (จากหน้า Manage deployments ของ Apps Script)
+
 const API_URL = "https://script.google.com/macros/s/AKfycbziGhvpuP0QmvRBswNNjBFpSfVkP_97yXKwXjLGkIVlNq6DLZzZsc4mYM7E5BRd6FgN/exec";
 const WARN_DAYS = 30;
 
