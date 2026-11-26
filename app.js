@@ -1,5 +1,5 @@
 // เปลี่ยนเป็น Web App URL ของคุณที่ลงท้ายด้วย /exec
-const API_URL = "https://script.google.com/macros/s/วาง_DEPLOYMENT_ID_ของคุณที่นี่/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyp94qwphKaL8fMnOq6RFfI6fqhTKq2lK8baDyVNbgunkHQrwAZiZ0ZRLdzBfBDN5WE/exec";
 const WARN_DAYS = 30;
 
 let customersData = [];
