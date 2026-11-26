@@ -1,5 +1,5 @@
 // เปลี่ยนเป็น Web App URL ของคุณที่ลงท้ายด้วย /exec
-const API_URL = "https://script.google.com/macros/s/AKfycbyp94qwphKaL8fMnOq6RFfI6fqhTKq2lK8baDyVNbgunkHQrwAZiZ0ZRLdzBfBDN5WE/exec";
+const API_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnRM9IHbqF_OOu4a8nKzjri1Saxq1HKtM7waalisKSV8gRNcRtkFnlZnGifhK1n3dBgxdcP2Oga1NJclCiw7f9alcsPsCmTBVvLMT6K-cwhFvopwD9xg3Qdz5teKGiFPkfbP5uBpZ9RlpL4FAKqO9QjtXnbl7DLyE1DU-gK-MfpnOUwfQxKkkM9rvbTfz9uDIozJeYCvbtP9NZ9xKD2ezoXwCSFHI6La1ENiW7Cd3FNG4X6dtRx5_LOe0Kj1mKV-2jE6ecaM6t7-xKIH_cPZGRfXGaw4Kw&lib=MsBHAS5EOVpNNb7tF5mubXrbFj9HXTZNr";
 const WARN_DAYS = 30;
 
 let customersData = [];
