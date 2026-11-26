@@ -1,2 +1,0 @@
-# CTK-CUSTOMER
-customer UI
