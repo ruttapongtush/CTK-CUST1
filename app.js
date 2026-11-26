@@ -1,149 +1,108 @@
-// วาง Web App URL ที่ได้จากการ Deploy Apps Script (ต้องลงท้ายด้วย /exec)
-// ตัวอย่าง: "https://script.google.com/macros/s/AKfycbyp94qwphKaL8fMnO6RfFl6fqhTKq2lK8.../exec"
-const RAW_API_URL = "https://script.google.com/macros/s/AKfycbyp94qwphKaL8fMnOq6RFfI6fqhTKq2lK8baDyVNbgunkHQrwAZiZ0ZRLdzBfBDN5WE/exec";
+const RAW_API_URL = "https://script.google.com/macros/s/วาง_DEPLOYMENT_ID_ของคุณที่นี่/exec";
+const WARN_DAYS = 30;
+let cachedCustomers = [];
 
-function normalizeWebAppUrl(url) {
-  const trimmed = (url || "").trim();
-  // หากเผลอวางลิงก์จากหน้ารีไดเรกต์ script.googleusercontent.com/macros/echo ให้แจ้งเตือนชัดเจน
-  if (trimmed.includes("script.googleusercontent.com/macros/echo")) {
-    throw new Error(
-      "URL ไม่ถูกต้อง: กรุณาใช้ลิงก์ Web App ที่ลงท้ายด้วย /exec จากหน้า Manage deployments แทนลิงก์ /echo"
-    );
+// แปลงวันที่ทุกรูปแบบให้เป็น YYYY-MM-DD และคำนวณจำนวนวันคงเหลือให้แม่นยำ
+function parseCleanDate(dateVal) {
+  if (!dateVal) return null;
+  const str = String(dateVal).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const [y, m, d] = str.slice(0, 10).split("-").map(Number);
+    return new Date(y, m - 1, d);
   }
-  return trimmed;
+  const dt = new Date(str);
+  if (!Number.isNaN(dt.getTime())) {
+    return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  }
+  return null;
 }
 
-const WARN_DAYS = 30;
-let cachedData = [];
+function formatDateThaiISO(dateVal) {
+  const dt = parseCleanDate(dateVal);
+  if (!dt) return "-";
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
-function daysUntil(dateStr) {
-  if (!dateStr) return 9999;
-  const cleanDate = String(dateStr).trim().slice(0, 10);
+function daysUntil(dateVal) {
+  const target = parseCleanDate(dateVal);
+  if (!target) return 9999;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const target = new Date(cleanDate + "T00:00:00");
-  if (Number.isNaN(target.getTime())) return 9999;
   return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
-}
-
-function formatMoney(amount) {
-  const num = Number(amount);
-  return Number.isFinite(num) ? num.toLocaleString("th-TH") : "0";
 }
 
 async function fetchFromSheet() {
   const container = document.getElementById("recordsContainer");
-  container.innerHTML = `<div class="card">กำลังโหลดข้อมูลจาก Google Sheets...</div>`;
+  container.innerHTML = `<div class="card">กำลังโหลดข้อมูลลูกค้าและบิลจาก Google Sheets...</div>`;
 
   try {
-    const apiUrl = normalizeWebAppUrl(RAW_API_URL);
-    if (!apiUrl || apiUrl.includes("วาง_DEPLOYMENT_ID_ของคุณที่นี่")) {
-      throw new Error("ยังไม่ได้ตั้งค่า API_URL ที่ลงท้ายด้วย /exec ในไฟล์ app.js");
-    }
-
-    const res = await fetch(`${apiUrl}?t=${Date.now()}`, {
-      method: "GET",
-      redirect: "follow"
-    });
-
-    const text = await res.text();
-    let json;
-    try {
-      json = JSON.parse(text);
-    } catch {
-      throw new Error(
-        "Google Apps Script ส่งข้อมูลกลับมาไม่ใช่ JSON (อาจยังไม่ได้ตั้งสิทธิ์ Who has access เป็น Anyone หรือชื่อแท็บ Receipts/Equipment/Maintenance ไม่ตรง)"
-      );
-    }
-
-    if (!Array.isArray(json)) {
-      throw new Error(json.message || "รูปแบบข้อมูลจาก Google Sheets ไม่ถูกต้อง");
-    }
-
-    cachedData = json;
+    const res = await fetch(`${RAW_API_URL}?t=${Date.now()}`, { redirect: "follow" });
+    const data = await res.json();
+    cachedCustomers = Array.isArray(data) ? data : [];
     renderAll();
   } catch (err) {
-    container.innerHTML = `
-      <div class="card" style="color:#b91c1c;">
-        <strong>เชื่อมต่อ Google Sheets ไม่สำเร็จ:</strong> ${err.message}
-        <div style="margin-top:10px;">
-          <button onclick="fetchFromSheet()">ลองเชื่อมต่อใหม่</button>
-        </div>
-      </div>
-    `;
+    container.innerHTML = `<div class="card" style="color:#b91c1c;">เชื่อมต่อ Google Sheets ไม่สำเร็จ: ${err.message}</div>`;
   }
 }
 
-async function addMaintenance(receiptNo, itemId, btnEl) {
+async function addMaintenance(customerId, receiptNo, itemId, btnEl) {
   const dateInput = document.getElementById(`mDate_${itemId}`);
   const detailInput = document.getElementById(`mDetail_${itemId}`);
   const dateVal = dateInput ? dateInput.value : "";
   const detailVal = detailInput ? detailInput.value.trim() : "";
 
   if (!dateVal || !detailVal) {
-    alert("กรุณากรอกวันที่เปลี่ยน/ซ่อม และรายละเอียดอาการเสีย");
+    alert("กรุณากรอกวันที่ซ่อม/เปลี่ยน และรายละเอียดอาการเสีย");
     return;
   }
 
-  const originalText = btnEl ? btnEl.textContent : "+ บันทึกซ่อม";
-  if (btnEl) {
-    btnEl.disabled = true;
-    btnEl.textContent = "กำลังบันทึก...";
-  }
+  btnEl.disabled = true;
+  btnEl.textContent = "กำลังบันทึก...";
 
   try {
-    const apiUrl = normalizeWebAppUrl(RAW_API_URL);
-    const res = await fetch(apiUrl, {
+    await fetch(RAW_API_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       redirect: "follow",
       body: JSON.stringify({
         action: "addMaintenance",
-        receiptNo: receiptNo,
-        itemId: itemId,
+        customerId,
+        receiptNo,
+        itemId,
         date: dateVal,
         detail: detailVal
       })
     });
-
-    const text = await res.text();
-    try {
-      const result = JSON.parse(text);
-      if (result.status && result.status !== "success") {
-        throw new Error(result.message || "บันทึกไม่สำเร็จ");
-      }
-    } catch {
-      // บางกรณี redirect ของ Apps Script อาจคืนค่าไม่เป็น JSON แต่บันทึกสำเร็จแล้ว
-    }
-
-    if (detailInput) detailInput.value = "";
     await fetchFromSheet();
   } catch (err) {
     alert("บันทึกไม่สำเร็จ: " + err.message);
-    if (btnEl) {
-      btnEl.disabled = false;
-      btnEl.textContent = originalText;
-    }
+    btnEl.disabled = false;
+    btnEl.textContent = "+ บันทึกซ่อม";
   }
 }
 
-function renderAlerts(data) {
+function renderAlerts(customers) {
   const box = document.getElementById("warrantyAlerts");
   const warnings = [];
 
-  data.forEach(r => {
-    (r.items || []).forEach(item => {
-      const rem = daysUntil(item.warrantyEnd);
-      if (rem <= WARN_DAYS) {
-        warnings.push({
-          receiptNo: r.receiptNo || "-",
-          customerName: r.customerName || "-",
-          model: item.model || "-",
-          ip: item.ip || "-",
-          warrantyEnd: item.warrantyEnd || "-",
-          rem
-        });
-      }
+  customers.forEach(c => {
+    (c.receipts || []).forEach(r => {
+      (r.items || []).forEach(item => {
+        const rem = daysUntil(item.warrantyEnd);
+        if (rem <= WARN_DAYS) {
+          warnings.push({
+            customerName: c.customerName,
+            receiptNo: r.receiptNo,
+            model: item.model,
+            ip: item.ip,
+            warrantyEnd: formatDateThaiISO(item.warrantyEnd),
+            rem
+          });
+        }
+      });
     });
   });
 
@@ -167,99 +126,118 @@ function renderAlerts(data) {
 }
 
 function renderAll() {
-  const searchEl = document.getElementById("searchInput");
-  const kw = searchEl ? searchEl.value.trim().toLowerCase() : "";
-  renderAlerts(cachedData);
+  const kw = (document.getElementById("searchInput")?.value || "").trim().toLowerCase();
+  renderAlerts(cachedCustomers);
 
   const container = document.getElementById("recordsContainer");
-  const filtered = cachedData.filter(r => {
-    const items = r.items || [];
-    const matchReceipt =
+  const filtered = cachedCustomers.filter(c => {
+    const matchCust =
+      String(c.customerName || "").toLowerCase().includes(kw) ||
+      String(c.address || "").toLowerCase().includes(kw) ||
+      String(c.phone || "").toLowerCase().includes(kw);
+
+    const matchRecOrItem = (c.receipts || []).some(r =>
       String(r.receiptNo || "").toLowerCase().includes(kw) ||
-      String(r.customerName || "").toLowerCase().includes(kw) ||
-      String(r.address || "").toLowerCase().includes(kw);
-
-    const matchItem = items.some(i =>
-      String(i.model || "").toLowerCase().includes(kw) ||
-      String(i.ip || "").toLowerCase().includes(kw) ||
-      String(i.note || "").toLowerCase().includes(kw) ||
-      String(i.productType || "").toLowerCase().includes(kw)
+      (r.items || []).some(i =>
+        String(i.model || "").toLowerCase().includes(kw) ||
+        String(i.ip || "").toLowerCase().includes(kw) ||
+        String(i.note || "").toLowerCase().includes(kw)
+      )
     );
-
-    return !kw || matchReceipt || matchItem;
+    return !kw || matchCust || matchRecOrItem;
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="card">ไม่พบข้อมูลที่ค้นหา</div>`;
+    container.innerHTML = `<div class="card">ไม่พบข้อมูลลูกค้าหรือบิลที่ค้นหา</div>`;
     return;
   }
 
-  container.innerHTML = filtered.map(r => {
-    const items = r.items || [];
-    return `
-      <div class="card">
-        <div class="row-flex" style="justify-content: space-between;">
-          <div>
-            <h2 style="margin:0 0 4px;">เลขที่ใบเสร็จ: ${r.receiptNo || "-"} — ${r.customerName || "-"}</h2>
-            <div style="color:#4b5563; font-size:14px;">ที่อยู่: ${r.address || "-"}</div>
-          </div>
-          <div>
-            ${r.diagramPdf
-              ? `<a href="${r.diagramPdf}" target="_blank" rel="noopener noreferrer">เปิดไฟล์ Diagram (PDF)</a>`
-              : `<span style="color:#9ca3af; font-size:13px;">ไม่มีไฟล์ Diagram</span>`}
-          </div>
+  container.innerHTML = filtered.map(c => `
+    <div class="card" style="border-top: 4px solid #2563eb;">
+      <!-- ส่วนหัว: ชื่อลูกค้าเป็นคีย์หลัก -->
+      <div class="row-flex" style="justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 14px;">
+        <div>
+          <h2 style="margin:0 0 4px; color:#1e3a8a;">${c.customerName}</h2>
+          <div style="color:#4b5563; font-size:14px;">ที่อยู่: ${c.address || "-"} ${c.phone ? `| โทร: ${c.phone}` : ""}</div>
         </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>สินค้า</th>
-              <th>Model</th>
-              <th>IP</th>
-              <th>วันหมดประกัน & สถานะ</th>
-              <th>ราคา</th>
-              <th>Distributor</th>
-              <th>หมายเหตุ & ประวัติซ่อมบำรุง</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(item => {
-              const rem = daysUntil(item.warrantyEnd);
-              const statusBadge = rem <= WARN_DAYS
-                ? `<span class="badge-warn">${rem < 0 ? "หมดอายุแล้ว" : `เหลือ ${rem} วัน`}</span>`
-                : `<span class="badge-ok">ปกติ (เหลือ ${rem} วัน)</span>`;
-
-              const logs = item.maintenance || [];
-
-              return `
-                <tr>
-                  <td>${item.productType || "-"}</td>
-                  <td>${item.model || "-"}</td>
-                  <td><code>${item.ip || "-"}</code></td>
-                  <td>${item.warrantyEnd || "-"}<br/>${statusBadge}</td>
-                  <td>${formatMoney(item.price)}</td>
-                  <td>${item.distributor || "-"}</td>
-                  <td>
-                    <div>${item.note || "-"}</div>
-                    <ul class="maint-list">
-                      ${logs.length
-                        ? logs.map(m => `<li><b>${m.date || "-"}:</b> ${m.detail || "-"}</li>`).join("")
-                        : "<li>ยังไม่มีประวัติซ่อมบำรุง</li>"}
-                    </ul>
-                    <div class="row-flex" style="margin-top:8px;">
-                      <input type="date" id="mDate_${item.id}" />
-                      <input type="text" id="mDetail_${item.id}" placeholder="เช่น กล้องตัวที่ 1 adapter เสีย วันที่เปลี่ยน..." style="min-width:220px;" />
-                      <button onclick="addMaintenance('${r.receiptNo}', '${item.id}', this)">+ บันทึกซ่อม</button>
-                    </div>
-                  </td>
-                </tr>
-              `;
-            }).join("")}
-          </tbody>
-        </table>
+        <div class="row-flex">
+          ${c.masterDiagramPdf
+            ? `<a href="${c.masterDiagramPdf}" target="_blank" style="background:#eff6ff; color:#1d4ed8; padding:6px 12px; border-radius:6px; text-decoration:none; font-weight:600;">ผังรวมลูกค้า (PDF)</a>`
+            : ""}
+          <span style="background:#f1f5f9; padding:6px 10px; border-radius:6px; font-size:13px;">
+            จำนวนบิลทั้งหมด: <b>${(c.receipts || []).length}</b> บิล
+          </span>
+        </div>
       </div>
-    `;
-  }).join("");
+
+      <!-- รายการบิลต่างๆ ของลูกค้าคนนี้ (เช่น Invoice1234, Invoice5678) -->
+      ${(c.receipts || []).length === 0
+        ? `<div style="color:#6b7280;">ยังไม่มีรายการบิลของลูกค้ารายนี้</div>`
+        : (c.receipts || []).map(r => `
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:14px;">
+            <div class="row-flex" style="justify-content: space-between; margin-bottom:8px;">
+              <div>
+                <strong style="font-size:16px; color:#0f172a;">บิลเลขที่: ${r.receiptNo}</strong>
+                ${r.issueDate ? `<span style="color:#64748b; font-size:13px; margin-left:8px;">(วันที่: ${r.issueDate})</span>` : ""}
+                ${r.note ? `<div style="font-size:13px; color:#475569;">รายละเอียดงาน: ${r.note}</div>` : ""}
+              </div>
+              <div>
+                ${r.diagramPdf
+                  ? `<a href="${r.diagramPdf}" target="_blank" style="background:#16a34a; color:#fff; padding:5px 10px; border-radius:6px; text-decoration:none; font-size:13px; font-weight:600;">เปิด Diagram บิลนี้ (PDF)</a>`
+                  : `<span style="color:#9ca3af; font-size:13px;">ไม่มี Diagram บิลนี้</span>`}
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>สินค้า</th>
+                  <th>Model</th>
+                  <th>IP</th>
+                  <th>วันหมดประกัน & สถานะ</th>
+                  <th>ราคา</th>
+                  <th>Distributor</th>
+                  <th>หมายเหตุ & บันทึกการซ่อม</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(r.items || []).map(item => {
+                  const rem = daysUntil(item.warrantyEnd);
+                  const cleanEnd = formatDateThaiISO(item.warrantyEnd);
+                  const statusBadge = rem <= WARN_DAYS
+                    ? `<span class="badge-warn">${rem < 0 ? "หมดอายุแล้ว" : `เหลือ ${rem} วัน`}</span>`
+                    : `<span class="badge-ok">ปกติ (เหลือ ${rem} วัน)</span>`;
+
+                  return `
+                    <tr>
+                      <td>${item.productType || "-"}</td>
+                      <td>${item.model || "-"}</td>
+                      <td><code>${item.ip || "-"}</code></td>
+                      <td>${cleanEnd}<br/>${statusBadge}</td>
+                      <td>${Number(item.price || 0).toLocaleString()}</td>
+                      <td>${item.distributor || "-"}</td>
+                      <td>
+                        <div>${item.note || "-"}</div>
+                        <ul class="maint-list">
+                          ${(item.maintenance || []).length
+                            ? item.maintenance.map(m => `<li><b>${formatDateThaiISO(m.date)}:</b> ${m.detail}</li>`).join("")
+                            : "<li>ยังไม่มีประวัติซ่อมบำรุง</li>"}
+                        </ul>
+                        <div class="row-flex" style="margin-top:8px;">
+                          <input type="date" id="mDate_${item.id}" />
+                          <input type="text" id="mDetail_${item.id}" placeholder="เช่น กล้องตัวที่ 1 adapter เสีย วันที่เปลี่ยน..." style="min-width:210px;" />
+                          <button onclick="addMaintenance('${c.customerId}', '${r.receiptNo}', '${item.id}', this)">+ บันทึกซ่อม</button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        `).join("")}
+    </div>
+  `).join("");
 }
 
 fetchFromSheet();
