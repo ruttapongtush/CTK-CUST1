@@ -1,4 +1,3 @@
-// เปลี่ยนเป็น Web App URL ของคุณที่ลงท้ายด้วย /exec (จากหน้า Manage deployments ของ Apps Script)
 const API_URL = "https://script.google.com/macros/s/AKfycbziGhvpuP0QmvRBswNNjBFpSfVkP_97yXKwXjLGkIVlNq6DLZzZsc4mYM7E5BRd6FgN/exec";
 const WARN_DAYS = 30;
 
@@ -53,13 +52,29 @@ function escapeAttr(str) {
     .replace(/>/g, "&gt;");
 }
 
-function hideAlertBanner() {
-  const box = document.getElementById("expiryAlertBox");
-  if (box) box.style.display = "none";
+function openPdfViewer(rawPath, title = "Diagram (PDF)") {
+  const cleanPath = String(rawPath || "").trim().replace(/^\/+/, "");
+  if (!cleanPath) return;
+
+  const modal = document.getElementById("pdfViewerModal");
+  const iframe = document.getElementById("pdfIframe");
+  const titleEl = document.getElementById("pdfViewerTitle");
+  const extLink = document.getElementById("pdfExternalLink");
+
+  if (titleEl) titleEl.textContent = title;
+  if (extLink) extLink.href = cleanPath;
+  if (iframe) iframe.src = cleanPath;
+  if (modal) modal.showModal();
+}
+
+function closePdfViewer() {
+  const modal = document.getElementById("pdfViewerModal");
+  const iframe = document.getElementById("pdfIframe");
+  if (iframe) iframe.src = "";
+  if (modal) modal.close();
 }
 
 async function fetchFromSheet() {
-  hideAlertBanner();
   const panel = document.getElementById("customerDetailPanel");
   if (panel) {
     panel.innerHTML = `<div class="card empty-state">กำลังโหลดข้อมูลจาก Google Sheets...</div>`;
@@ -186,7 +201,7 @@ async function handleSaveDiagram(e) {
   const scope = document.getElementById("diagScope").value;
   const customerId = document.getElementById("diagCustomerId").value;
   const receiptNo = document.getElementById("diagReceiptNo").value;
-  const diagramPdf = document.getElementById("diagPdfUrl").value.trim();
+  const diagramPdf = document.getElementById("diagPdfUrl").value.trim().replace(/^\/+/, "");
   if (!diagramPdf) return;
 
   try {
@@ -286,7 +301,10 @@ function renderCustomerDetail(filtered) {
             + เพิ่ม/แก้ Diagram (PDF)
           </button>
           ${current.masterDiagramPdf
-            ? `<a href="${escapeAttr(current.masterDiagramPdf)}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm">เปิดผังลูกค้า (PDF)</a>`
+            ? `<button type="button" class="btn btn-success btn-sm"
+                onclick="openPdfViewer('${escapeAttr(current.masterDiagramPdf)}', '${escapeAttr(current.customerName)} — ผังลูกค้า (PDF)')">
+                เปิดผังลูกค้า (PDF)
+              </button>`
             : `<span class="pill">ยังไม่มี Diagram ลูกค้า</span>`}
         </div>
       </div>
@@ -310,7 +328,10 @@ function renderCustomerDetail(filtered) {
                   + Diagram บิล
                 </button>
                 ${r.diagramPdf
-                  ? `<a href="${escapeAttr(r.diagramPdf)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">ดู Diagram บิล (PDF)</a>`
+                  ? `<button type="button" class="btn btn-primary btn-sm"
+                      onclick="openPdfViewer('${escapeAttr(r.diagramPdf)}', 'บิล ${escapeAttr(r.receiptNo)} — Diagram (PDF)')">
+                      ดู Diagram บิล (PDF)
+                    </button>`
                   : `<span style="font-size:12px;color:#94a3b8;">ไม่มีไฟล์ PDF บิลนี้</span>`}
               </div>
             </div>
@@ -332,13 +353,9 @@ function renderCustomerDetail(filtered) {
                 <tbody>
                   ${(r.items || []).map(item => {
                     const daysLeft = calcDaysLeft(item.warrantyEnd);
-                    let badge = `<span class="badge-ok">ปกติ (เหลือ ${daysLeft} วัน)</span>`;
-                    if (daysLeft < 0) {
-                      badge = `<span class="badge-warn">หมดประกันแล้ว</span>`;
-                    } else if (daysLeft <= WARN_DAYS) {
-                      badge = `<span class="badge-warn">ใกล้หมดอายุ (${daysLeft} วัน)</span>`;
-                    }
-
+                    const badge = daysLeft <= WARN_DAYS
+                      ? `<span class="badge-warn">${daysLeft < 0 ? "หมดอายุแล้ว" : `ใกล้หมดอายุ (${daysLeft} วัน)`}</span>`
+                      : `<span class="badge-ok">ปกติ (เหลือ ${daysLeft} วัน)</span>`;
                     const logs = item.maintenance || [];
                     const safeItemId = escapeAttr(item.id);
                     const prodLabel = item.productName || item.productType || item.model || "-";
@@ -381,7 +398,6 @@ function renderCustomerDetail(filtered) {
 }
 
 function renderAll() {
-  hideAlertBanner();
   const filtered = getFilteredCustomers();
   renderCustomerList(filtered);
   renderCustomerDetail(filtered);
