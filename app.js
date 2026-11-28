@@ -224,16 +224,20 @@ async function handleSaveDiagram(e) {
   }
 }
 
-async function addMaintenance(customerId, receiptNo, itemId, productName, serialNo, ip, btnEl) {
-  const dateEl = document.getElementById(`mDate_${itemId}`);
-  const detailEl = document.getElementById(`mDetail_${itemId}`);
+async function addCustomerMaintenance(customerId, btnEl) {
+  const dateEl = document.getElementById(`custMDate_${customerId}`);
+  const detailEl = document.getElementById(`custMDetail_${customerId}`);
   const dateVal = dateEl ? dateEl.value : "";
   const detailVal = detailEl ? detailEl.value.trim() : "";
 
   if (!dateVal || !detailVal) {
-    alert("กรุณากรอกวันที่ซ่อม/เปลี่ยน และรายละเอียดอาการเสีย");
+    alert("กรุณากรอกวันที่ซ่อม/เปลี่ยน และรายละเอียดการซ่อมบำรุง");
     return;
   }
+
+  const current = customersData.find(c => c.customerId === customerId);
+  const firstReceipt = current?.receipts?.[0];
+  const firstItem = firstReceipt?.items?.[0];
 
   const prevLabel = btnEl.textContent;
   btnEl.disabled = true;
@@ -247,11 +251,11 @@ async function addMaintenance(customerId, receiptNo, itemId, productName, serial
       body: JSON.stringify({
         action: "addMaintenance",
         customerId,
-        receiptNo,
-        itemId,
-        productName,
-        serialNo,
-        ip,
+        receiptNo: firstReceipt?.receiptNo || "",
+        itemId: firstItem?.id || "",
+        productName: firstItem?.productName || firstItem?.model || "",
+        serialNo: firstItem?.serialNo || "",
+        ip: firstItem?.ip || "",
         date: dateVal,
         detail: detailVal
       })
@@ -280,6 +284,7 @@ function renderCustomerDetail(filtered) {
   selectedCustomerId = current.customerId;
 
   const receipts = current.receipts || [];
+  const safeCustId = escapeAttr(current.customerId);
 
   panel.innerHTML = `
     <div class="card">
@@ -297,7 +302,7 @@ function renderCustomerDetail(filtered) {
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button type="button" class="btn btn-primary btn-sm"
-            onclick="openDiagramModal('customer', '${escapeAttr(current.customerId)}', '${escapeAttr(current.customerName)}', '', '${escapeAttr(current.masterDiagramPdf || "")}')">
+            onclick="openDiagramModal('customer', '${safeCustId}', '${escapeAttr(current.customerName)}', '', '${escapeAttr(current.masterDiagramPdf || "")}')">
             + เพิ่ม/แก้ Diagram (PDF)
           </button>
           ${current.masterDiagramPdf
@@ -306,6 +311,19 @@ function renderCustomerDetail(filtered) {
                 เปิดผังลูกค้า (PDF)
               </button>`
             : `<span class="pill">ยังไม่มี Diagram ลูกค้า</span>`}
+        </div>
+      </div>
+
+      <!-- กล่องบันทึกการซ่อมของลูกค้า (เหลืออันเดียวต่อลูกค้า) -->
+      <div class="invoice-box" style="margin-bottom:16px;">
+        <div style="font-weight:700;margin-bottom:8px;color:#1e3a8a;">บันทึกการซ่อมบำรุงของลูกค้า</div>
+        <div class="maint-form">
+          <input type="date" id="custMDate_${safeCustId}" />
+          <input type="text" id="custMDetail_${safeCustId}" style="flex:1;min-width:220px;" placeholder="พิมพ์รายละเอียดการซ่อม/เปลี่ยนอุปกรณ์..." />
+          <button type="button" class="btn btn-primary btn-sm"
+            onclick="addCustomerMaintenance('${safeCustId}', this)">
+            + บันทึกซ่อม
+          </button>
         </div>
       </div>
 
@@ -324,7 +342,7 @@ function renderCustomerDetail(filtered) {
 
               <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
                 <button type="button" class="btn btn-secondary btn-sm"
-                  onclick="openDiagramModal('receipt', '${escapeAttr(current.customerId)}', '${escapeAttr(current.customerName)}', '${escapeAttr(r.receiptNo)}', '${escapeAttr(r.diagramPdf || "")}')">
+                  onclick="openDiagramModal('receipt', '${safeCustId}', '${escapeAttr(current.customerName)}', '${escapeAttr(r.receiptNo)}', '${escapeAttr(r.diagramPdf || "")}')">
                   + Diagram บิล
                 </button>
                 ${r.diagramPdf
@@ -357,7 +375,6 @@ function renderCustomerDetail(filtered) {
                       ? `<span class="badge-warn">${daysLeft < 0 ? "หมดอายุแล้ว" : `ใกล้หมดอายุ (${daysLeft} วัน)`}</span>`
                       : `<span class="badge-ok">ปกติ (เหลือ ${daysLeft} วัน)</span>`;
                     const logs = item.maintenance || [];
-                    const safeItemId = escapeAttr(item.id);
                     const prodLabel = item.productName || item.productType || item.model || "-";
 
                     return `
@@ -376,14 +393,6 @@ function renderCustomerDetail(filtered) {
                               ? logs.map(m => `<li><b>${formatDateISO(m.date)}:</b> ${escapeAttr(m.detail)}</li>`).join("")
                               : "<li>ยังไม่มีประวัติการซ่อมแซม</li>"}
                           </ul>
-                          <div class="maint-form">
-                            <input type="date" id="mDate_${safeItemId}" />
-                            <input type="text" id="mDetail_${safeItemId}" placeholder="เช่น กล้องตัวที่ 1 adapter เสีย วันที่เปลี่ยน..." />
-                            <button type="button" class="btn btn-primary btn-sm"
-                              onclick="addMaintenance('${escapeAttr(current.customerId)}', '${escapeAttr(r.receiptNo)}', '${safeItemId}', '${escapeAttr(prodLabel)}', '${escapeAttr(item.serialNo || "")}', '${escapeAttr(item.ip || "")}', this)">
-                              + บันทึกซ่อม
-                            </button>
-                          </div>
                         </td>
                       </tr>
                     `;
