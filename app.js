@@ -1,4 +1,4 @@
-
+// เปลี่ยนเป็น Web App URL ของคุณที่ลงท้ายด้วย /exec (จากหน้า Manage deployments ของ Apps Script)
 const API_URL = "https://script.google.com/macros/s/AKfycbziGhvpuP0QmvRBswNNjBFpSfVkP_97yXKwXjLGkIVlNq6DLZzZsc4mYM7E5BRd6FgN/exec";
 const WARN_DAYS = 30;
 
@@ -53,7 +53,13 @@ function escapeAttr(str) {
     .replace(/>/g, "&gt;");
 }
 
+function hideAlertBanner() {
+  const box = document.getElementById("expiryAlertBox");
+  if (box) box.style.display = "none";
+}
+
 async function fetchFromSheet() {
+  hideAlertBanner();
   const panel = document.getElementById("customerDetailPanel");
   if (panel) {
     panel.innerHTML = `<div class="card empty-state">กำลังโหลดข้อมูลจาก Google Sheets...</div>`;
@@ -101,60 +107,6 @@ async function fetchFromSheet() {
       `;
     }
   }
-}
-
-function getExpiringItems() {
-  const list = [];
-  customersData.forEach(c => {
-    (c.receipts || []).forEach(r => {
-      (r.items || []).forEach(item => {
-        const daysLeft = calcDaysLeft(item.warrantyEnd);
-        if (daysLeft <= WARN_DAYS) {
-          list.push({
-            customerId: c.customerId,
-            customerName: c.customerName,
-            receiptNo: r.receiptNo,
-            productName: item.productName || item.productType || item.model || "-",
-            model: item.model || "-",
-            serialNo: item.serialNo || "",
-            ip: item.ip || "",
-            warrantyEnd: formatDateISO(item.warrantyEnd),
-            daysLeft
-          });
-        }
-      });
-    });
-  });
-  return list;
-}
-
-function renderExpiryAlert() {
-  const box = document.getElementById("expiryAlertBox");
-  if (!box) return;
-
-  const expiring = getExpiringItems();
-  if (expiring.length === 0) {
-    box.innerHTML = `<strong>แจ้งเตือนประกันสินค้า:</strong> ไม่มีสินค้าใกล้หมดอายุภายใน ${WARN_DAYS} วัน`;
-    return;
-  }
-
-  box.innerHTML = `
-    <strong>แจ้งเตือนสินค้าใกล้หมดอายุ / หมดอายุแล้ว (${expiring.length} รายการ):</strong>
-    <ul style="margin:6px 0 0;padding-left:20px;">
-      ${expiring.map(w => `
-        <li>
-          <a href="#" onclick="selectCustomer('${escapeAttr(w.customerId)}'); return false;"><b>${escapeAttr(w.customerName)}</b></a>
-          (บิล <code>${escapeAttr(w.receiptNo)}</code>) — ${escapeAttr(w.productName)}
-          ${w.serialNo ? `[S/N: <code>${escapeAttr(w.serialNo)}</code>]` : ""}
-          ${w.ip ? `[IP: <code>${escapeAttr(w.ip)}</code>]` : ""} :
-          ${w.daysLeft < 0
-            ? `<span style="color:#b91c1c;font-weight:700;">หมดประกันแล้ว (${Math.abs(w.daysLeft)} วัน)</span>`
-            : `<span style="color:#c2410c;font-weight:700;">เหลืออีก ${w.daysLeft} วัน</span>`}
-          (${w.warrantyEnd})
-        </li>
-      `).join("")}
-    </ul>
-  `;
 }
 
 function selectCustomer(customerId) {
@@ -380,9 +332,13 @@ function renderCustomerDetail(filtered) {
                 <tbody>
                   ${(r.items || []).map(item => {
                     const daysLeft = calcDaysLeft(item.warrantyEnd);
-                    const badge = daysLeft <= WARN_DAYS
-                      ? `<span class="badge-warn">${daysLeft < 0 ? "หมดอายุแล้ว" : `ใกล้หมดอายุ (${daysLeft} วัน)`}</span>`
-                      : `<span class="badge-ok">ปกติ (เหลือ ${daysLeft} วัน)</span>`;
+                    let badge = `<span class="badge-ok">ปกติ (เหลือ ${daysLeft} วัน)</span>`;
+                    if (daysLeft < 0) {
+                      badge = `<span class="badge-warn">หมดประกันแล้ว</span>`;
+                    } else if (daysLeft <= WARN_DAYS) {
+                      badge = `<span class="badge-warn">ใกล้หมดอายุ (${daysLeft} วัน)</span>`;
+                    }
+
                     const logs = item.maintenance || [];
                     const safeItemId = escapeAttr(item.id);
                     const prodLabel = item.productName || item.productType || item.model || "-";
@@ -425,7 +381,7 @@ function renderCustomerDetail(filtered) {
 }
 
 function renderAll() {
-  renderExpiryAlert();
+  hideAlertBanner();
   const filtered = getFilteredCustomers();
   renderCustomerList(filtered);
   renderCustomerDetail(filtered);
