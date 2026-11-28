@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CTK Customer — ระบบลูกค้า บิล Diagram และประวัติซ่อม</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=3" />
 </head>
 <body>
   <header class="topbar">
@@ -54,8 +54,8 @@
       </div>
 
       <div class="form-group">
-        <label>พาธไฟล์ใน Repo (เช่น <code>diagrams/DR.Gift.pdf</code>) หรือ URL ของไฟล์ PDF</label>
-        <input type="text" id="diagPdfUrl" required placeholder="diagrams/Invoice1234.pdf" />
+        <label>พาธไฟล์ใน Repo (เช่น <code>Diagram/DR.Gift.pdf</code>)</label>
+        <input type="text" id="diagPdfUrl" required placeholder="Diagram/DR.Gift.pdf" />
       </div>
 
       <div class="modal-actions">
@@ -65,6 +65,20 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=2"></script>
+  <!-- โมดอลเปิดดู PDF บนเบราว์เซอร์ -->
+  <dialog id="pdfViewerModal" class="modal pdf-modal">
+    <div class="pdf-viewer-shell">
+      <div class="pdf-viewer-bar">
+        <strong id="pdfViewerTitle">Diagram (PDF)</strong>
+        <div class="pdf-viewer-actions">
+          <a id="pdfExternalLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">เปิดแท็บใหม่</a>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="closePdfViewer()">ปิด</button>
+        </div>
+      </div>
+      <iframe id="pdfIframe" src="" class="pdf-iframe" title="PDF Viewer"></iframe>
+    </div>
+  </dialog>
+
+  <script src="app.js?v=3"></script>
 </body>
 </html>
